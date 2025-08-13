@@ -3,6 +3,7 @@
 ## 🚀 Repositorio que almacena tareas, practicas y proyectos
 
 > - [TAREA1](Tarea1/)
+> - [TAREA2](Tarea2/)
 
 ## 📄 Integrantes del grupo
 
