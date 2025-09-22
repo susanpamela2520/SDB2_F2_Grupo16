@@ -9,7 +9,7 @@ from imdb_loader import IMDBDataLoader
 if __name__ == "__main__":
     db_config = {
         'host': 'localhost',
-        'database': 'imdb_fase1',
+        'database': 'imdb_prueba2',
         'user': 'root',
         'password': 'root',
         'charset': 'utf8mb4',
