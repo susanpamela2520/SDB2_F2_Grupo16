@@ -1,0 +1,122 @@
+services:
+  imdb-master1:
+    image: postgres:16
+    container_name: imdb-master1
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: bases2-db
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    volumes:
+      - ./mm-config/data/master1/:/var/lib/postgresql/data
+      - ./mm-config/config/master1/master1.conf:/etc/postgresql/postgresql.conf:ro
+      - ./mm-config/load/master1:/docker-entrypoint-initdb.d
+      - ./pgbackrest/master1:/etc/pgbackrest:ro
+      - ./backups/master1:/var/lib/pgbackrest
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d bases2-db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  imdb-master2:
+    image: postgres:16
+    container_name: imdb-master2
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: bases2-db
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    volumes:
+      - ./mm-config/data/master2/:/var/lib/postgresql/data
+      - ./mm-config/config/master2/master2.conf:/etc/postgresql/postgresql.conf:ro
+      - ./mm-config/load/master2:/docker-entrypoint-initdb.d
+      - ./pgbackrest/master2:/etc/pgbackrest:ro
+      - ./backups/master2:/var/lib/pgbackrest
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d bases2-db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  replication-setup:
+    image: postgres:16
+    depends_on:
+      imdb-master1:
+        condition: service_healthy
+      imdb-master2:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -lc
+      - |
+        set -e
+        echo "=== Configurando replicación bidireccional IMDB ==="
+        
+        echo "=== 1. Creando rol replicator ==="
+        # Crear rol replicator en master1
+        if [ "$(PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -Atqc "SELECT 1 FROM pg_roles WHERE rolname='replicator'")" != "1" ]; then
+          PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD 'repl_pass'";
+        fi
+        
+        # Crear rol replicator en master2
+        if [ "$(PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -Atqc "SELECT 1 FROM pg_roles WHERE rolname='replicator'")" != "1" ]; then
+          PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD 'repl_pass'";
+        fi
+        
+        echo "=== 2. Configurando permisos de replicación ==="
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "ALTER ROLE replicator WITH REPLICATION;"
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "ALTER ROLE replicator WITH REPLICATION;"
+        
+        echo "=== 3. Configurando permisos de lectura ==="
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO replicator;"
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO replicator;"
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO replicator;"
+        
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO replicator;"
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO replicator;"
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO replicator;"
+        
+        echo "=== 4. Creando publicaciones ==="
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "DROP PUBLICATION IF EXISTS pub_imdb;"
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "CREATE PUBLICATION pub_imdb FOR ALL TABLES;"
+        
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "DROP PUBLICATION IF EXISTS pub_imdb;"
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "CREATE PUBLICATION pub_imdb FOR ALL TABLES;"
+        
+        echo "=== 5. Creando suscripciones cruzadas (bidireccionales) ==="
+        # Master1 se suscribe a Master2
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "DROP SUBSCRIPTION IF EXISTS sub_from_master2;"
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "
+          CREATE SUBSCRIPTION sub_from_master2
+          CONNECTION 'host=imdb-master2 port=5432 user=replicator password=repl_pass dbname=bases2-db'
+          PUBLICATION pub_imdb
+          WITH (create_slot = true, slot_name = 'slot_2_to_1', copy_data = true, origin = 'none');"
+        
+        # Master2 se suscribe a Master1
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "DROP SUBSCRIPTION IF EXISTS sub_from_master1;"
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "
+          CREATE SUBSCRIPTION sub_from_master1
+          CONNECTION 'host=imdb-master1 port=5432 user=replicator password=repl_pass dbname=bases2-db'
+          PUBLICATION pub_imdb
+          WITH (create_slot = true, slot_name = 'slot_1_to_2', copy_data = true, origin = 'none');"
+        
+        echo "=== ✅ Replicación configurada exitosamente ==="
+
+  redis:
+    image: redis:7-alpine
+    container_name: imdb-redis
+    command: ["redis-server", "--loglevel", "warning"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis-data:/data
+
+volumes:
+  imdb_master1_data:
+  imdb_master2_data:
+  redis-data:

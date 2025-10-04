@@ -1,0 +1,31 @@
+Proyecto-Fase-2/
+├── docker-compose.yml           # Configuración de PostgreSQL master1 y master2
+├── mm-config/
+│   ├── config/
+│   │   ├── master1/
+│   │   │   └── master1.conf
+│   │   └── master2/
+│   │       └── master2.conf
+│   └── load/
+│       ├── master1/
+│       │   └── 001_schema.sql   # Tu schema IMDB
+│       └── master2/
+│           └── 001_schema.sql
+├── pgbackrest/
+│   ├── master1/
+│   │   └── pgbackrest.conf
+│   └── master2/
+│       └── pgbackrest.conf
+├── backups/
+│   ├── master1/
+│   └── master2/
+├── scripts/
+│   └── pgbackrest/
+│       ├── bootstrap.sh
+│       ├── run-backup.sh
+│       └── show-info.sh
+├── LoadData/
+│   ├── app.py
+│   └── imdb_loader.py           # Ya adaptado para PostgreSQL
+└── API/                         # Nueva carpeta para NestJS
+    └── ...
