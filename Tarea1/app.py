@@ -402,14 +402,14 @@ def main():
         'host': 'localhost',
         'database': 'based_tarea',
         'user': 'root',
-        'password': 'root',
+        'password': '123456',
         'charset': 'utf8mb4',
         'autocommit': False
     }
     
     # Ruta del csv
-    csv_file_path = 'Tarea1/netflix_titles.csv'
-    
+    csv_file_path = 'C:\\Users\\Naomi Rashel\\Documents\\2do semestre 2025\\Lab bases2\\Bases2_Grupo16\\Tarea1\\netflix_titles.csv'
+
     # Crear instancia del normalizador
     normalizer = NetflixDataNormalizer(db_config)
     
