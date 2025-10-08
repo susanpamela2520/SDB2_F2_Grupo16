@@ -1,0 +1,35 @@
+# 1. Levantar infraestructura
+cd Proyecto-Fase-2
+docker compose up -d
+
+# 2. Configurar pgBackRest
+./scripts/pgbackrest/bootstrap.sh
+
+# 3. Ejecutar simulación de backups (6 días)
+./scripts/pgbackrest/simulate-backup-cycle.sh
+
+# 4. Iniciar API
+cd Api
+npm install
+npm start
+
+# 5. Ejecutar Locust (en otra terminal)
+python -m locust -f locustfile.py -H http://localhost:5000 --headless -u 10 -r 2 -t 2m
+
+# 6. Mientras Locust está corriendo, simular failover
+docker stop imdb-master1
+
+# Observar en logs de Locust:
+# - Requests exitosos continúan
+# - Nodo activo cambia a "secondary"
+
+# 7. Recuperar Master 1
+docker start imdb-master1
+
+# Esperar ~5 segundos para sincronización
+
+# 8. Switchback manual
+curl -X POST http://localhost:5000/switch-to-primary
+
+# 9. Verificar datos en Redis
+docker exec -it imdb-redis redis-cli KEYS "pgbackrest:*"

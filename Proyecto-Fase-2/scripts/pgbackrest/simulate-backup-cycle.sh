@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# filepath: scripts/pgbackrest/simulate-backup-cycle.sh
+
 set -euo pipefail
 
 COMPOSE_CMD="docker compose"
@@ -39,6 +39,15 @@ function bytes_to_gb() {
 }
 
 # ==========================================
+# FUNCIÓN PARA FORMATEAR BYTES A MB (PARA REDIS)
+# ==========================================
+
+function bytes_to_mb() {
+  local bytes=$1
+  awk "BEGIN {printf \"%.2f MB\", $bytes/1024/1024}"
+}
+
+# ==========================================
 # FUNCIÓN PARA EXTRAER VALOR DE JSON
 # ==========================================
 
@@ -46,6 +55,32 @@ function extract_json() {
   local json=$1
   local key=$2
   echo "$json" | grep -o "\"${key}\":[^,}]*" | sed "s/\"${key}\"://g" | tr -d '"' | tr -d ' '
+}
+
+# ==========================================
+# FUNCIÓN PARA INSERTAR 5 REGISTROS
+# ==========================================
+
+function insert_test_data() {
+  echo "  📝 Insertando 5 registros de prueba..."
+  
+  # Obtener el último ID usado en la tabla generos
+  local last_id=$(${COMPOSE_CMD} exec -T "${STANZA}" psql -U root -d bases2-db -Atqc \
+    "SELECT COALESCE(MAX(id_genero), 0) FROM generos;" 2>/dev/null || echo "0")
+  
+  echo "     Último ID detectado: ${last_id}"
+  
+  # Insertar 5 registros incrementales
+  for i in {1..5}; do
+    local new_id=$((last_id + i))
+    local random_genre="Género Backup Test ${new_id}"
+    
+    ${COMPOSE_CMD} exec -T "${STANZA}" psql -U root -d bases2-db -c \
+      "INSERT INTO generos (id_genero, genero) VALUES (${new_id}, '${random_genre}');" \
+      >/dev/null 2>&1 && echo "     ✓ Insertado ID: ${new_id}" || echo "     ✗ Error en ID: ${new_id}"
+  done
+  
+  echo "  ✅ 5 registros insertados (IDs: $((last_id + 1)) a $((last_id + 5)))"
 }
 
 # ==========================================
@@ -102,7 +137,7 @@ function run_backup() {
   local duration_min=$((duration / 60))
   local duration_sec=$((duration % 60))
   
-  # Crear JSON simplificado
+  # Crear JSON simplificado (AHORA EN MB)
   local simplified_json=$(cat <<EOF
 {
   "day": ${day},
@@ -111,9 +146,9 @@ function run_backup() {
   "fecha_inicio": "${date_start}",
   "fecha_fin": "${date_stop}",
   "duracion": "${duration_min}m ${duration_sec}s",
-  "tamano_total": "$(bytes_to_gb ${size})",
-  "datos_copiados": "$(bytes_to_gb ${delta})",
-  "espacio_repositorio": "$(bytes_to_gb ${repo_size})",
+  "tamano_total": "$(bytes_to_mb ${size})",
+  "datos_copiados": "$(bytes_to_mb ${delta})",
+  "espacio_repositorio": "$(bytes_to_mb ${repo_size})",
   "timestamp_unix": {
     "inicio": ${timestamp_start},
     "fin": ${timestamp_stop}
@@ -187,30 +222,45 @@ echo ""
 
 start_time=$(date +%s)
 
+# DÍA 1: FULL
+insert_test_data
 run_backup 1 "full" || exit 1
 sleep ${DELAY_SECONDS}
 
+# DÍA 2: INCR
+insert_test_data
 run_backup 2 "incr" || exit 1
 sleep ${DELAY_SECONDS}
 
+# DÍA 3: INCR + DIFF
+insert_test_data
 run_backup 3 "incr" || exit 1
 sleep ${DELAY_SECONDS}
 
+insert_test_data
 run_backup 3 "diff" || exit 1
 sleep ${DELAY_SECONDS}
 
+# DÍA 4: INCR
+insert_test_data
 run_backup 4 "incr" || exit 1
 sleep ${DELAY_SECONDS}
 
+# DÍA 5: INCR + DIFF
+insert_test_data
 run_backup 5 "incr" || exit 1
 sleep ${DELAY_SECONDS}
 
+insert_test_data
 run_backup 5 "diff" || exit 1
 sleep ${DELAY_SECONDS}
 
+# DÍA 6: DIFF + FULL
+insert_test_data
 run_backup 6 "diff" || exit 1
 sleep ${DELAY_SECONDS}
 
+insert_test_data
 run_backup 6 "full" || exit 1
 
 end_time=$(date +%s)

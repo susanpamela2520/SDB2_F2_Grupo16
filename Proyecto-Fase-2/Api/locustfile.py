@@ -9,7 +9,7 @@ GENEROS = [
 
 class InsercionGeneros(HttpUser):
     # Ajusta pacing para tu prueba
-    wait_time = between(1, 3)
+    wait_time = between(3, 5)
 
     @task
     def insertar_genero(self):

@@ -58,12 +58,10 @@ services:
         echo "=== Configurando replicación bidireccional IMDB ==="
         
         echo "=== 1. Creando rol replicator ==="
-        # Crear rol replicator en master1
         if [ "$(PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -Atqc "SELECT 1 FROM pg_roles WHERE rolname='replicator'")" != "1" ]; then
           PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD 'repl_pass'";
         fi
         
-        # Crear rol replicator en master2
         if [ "$(PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -Atqc "SELECT 1 FROM pg_roles WHERE rolname='replicator'")" != "1" ]; then
           PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD 'repl_pass'";
         fi
@@ -81,29 +79,38 @@ services:
         PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO replicator;"
         PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO replicator;"
         
-        echo "=== 4. Creando publicaciones ==="
+        echo "=== 4. Limpiando slots huérfanos ANTES de crear suscripciones ==="
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots WHERE slot_name IN ('slot_1_to_2', 'slot_2_to_1');" 2>/dev/null || true
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots WHERE slot_name IN ('slot_1_to_2', 'slot_2_to_1');" 2>/dev/null || true
+        
+        echo "=== 5. Limpiando suscripciones con CASCADE ==="
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "ALTER SUBSCRIPTION sub_from_master2 DISABLE;" 2>/dev/null || true
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "ALTER SUBSCRIPTION sub_from_master2 SET (slot_name = NONE);" 2>/dev/null || true
+        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "DROP SUBSCRIPTION IF EXISTS sub_from_master2;" 2>/dev/null || true
+        
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "ALTER SUBSCRIPTION sub_from_master1 DISABLE;" 2>/dev/null || true
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "ALTER SUBSCRIPTION sub_from_master1 SET (slot_name = NONE);" 2>/dev/null || true
+        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "DROP SUBSCRIPTION IF EXISTS sub_from_master1;" 2>/dev/null || true
+        
+        echo "=== 6. Creando publicaciones ==="
         PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "DROP PUBLICATION IF EXISTS pub_imdb;"
         PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "CREATE PUBLICATION pub_imdb FOR ALL TABLES;"
         
         PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "DROP PUBLICATION IF EXISTS pub_imdb;"
         PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "CREATE PUBLICATION pub_imdb FOR ALL TABLES;"
         
-        echo "=== 5. Creando suscripciones cruzadas (bidireccionales) ==="
-        # Master1 se suscribe a Master2
-        PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "DROP SUBSCRIPTION IF EXISTS sub_from_master2;"
+        echo "=== 7. Creando suscripciones bidireccionales (LIMPIAS) ==="
         PGPASSWORD=root psql -h imdb-master1 -U root -d bases2-db -c "
           CREATE SUBSCRIPTION sub_from_master2
           CONNECTION 'host=imdb-master2 port=5432 user=replicator password=repl_pass dbname=bases2-db'
           PUBLICATION pub_imdb
-          WITH (create_slot = true, slot_name = 'slot_2_to_1', copy_data = true, origin = 'none');"
+          WITH (create_slot = true, slot_name = 'slot_2_to_1', copy_data = false, origin = 'none');"
         
-        # Master2 se suscribe a Master1
-        PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "DROP SUBSCRIPTION IF EXISTS sub_from_master1;"
         PGPASSWORD=root psql -h imdb-master2 -U root -d bases2-db -c "
           CREATE SUBSCRIPTION sub_from_master1
           CONNECTION 'host=imdb-master1 port=5432 user=replicator password=repl_pass dbname=bases2-db'
           PUBLICATION pub_imdb
-          WITH (create_slot = true, slot_name = 'slot_1_to_2', copy_data = true, origin = 'none');"
+          WITH (create_slot = true, slot_name = 'slot_1_to_2', copy_data = false, origin = 'none');"
         
         echo "=== ✅ Replicación configurada exitosamente ==="
 

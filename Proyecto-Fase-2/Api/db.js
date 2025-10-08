@@ -10,7 +10,7 @@ const FAILOVER_ERRORS = new Set([
 ]);
 
 function makePool(host, port) {
-  return new Pool({
+  const pool = new Pool({
     host,
     port: Number(port),
     user: process.env.PGUSER,
@@ -20,6 +20,12 @@ function makePool(host, port) {
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000
   });
+
+  pool.on('error', (err, client) => {
+    console.error(`⚠️  Error en pool (${host}:${port}):`, err.code || err.message);
+  });
+
+  return pool;
 }
 
 const pools = {
@@ -30,29 +36,50 @@ const pools = {
 let activeNode = "primary";
 export function getActiveNode() { return activeNode; }
 
+function switchNode(newNode) {
+  if (activeNode !== newNode) {
+    const previous = activeNode;
+    activeNode = newNode;
+    console.log(`🔄 Cambio de nodo: ${previous} → ${activeNode}`);
+  }
+}
+
 export async function queryWithFailover(text, params, clientOpt) {
   if (clientOpt?.client) return clientOpt.client.query(text, params);
+  
   try {
     return await pools[activeNode].query(text, params);
   } catch (e) {
     const code = e.code || e.errno || e.message;
+    console.error(`❌ Error en ${activeNode}:`, code);
+
     if (!FAILOVER_ERRORS.has(code)) throw e;
-    activeNode = activeNode === "primary" ? "secondary" : "primary";
+    
+    switchNode(activeNode === "primary" ? "secondary" : "primary");
     return await pools[activeNode].query(text, params);
   }
 }
 
 export async function getTxClient() {
-  try {
-    const c = await pools[activeNode].connect();
-    return { client: c, node: activeNode };
-  } catch (e) {
-    const code = e.code || e.errno || e.message;
-    if (!FAILOVER_ERRORS.has(code)) throw e;
-    activeNode = activeNode === "primary" ? "secondary" : "primary";
-    const c = await pools[activeNode].connect();
-    return { client: c, node: activeNode };
+  const maxRetries = 2;
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const c = await pools[activeNode].connect();
+      return { client: c, node: activeNode };
+    } catch (e) {
+      lastError = e;
+      const code = e.code || e.errno || e.message;
+      console.error(`❌ Error al conectar a ${activeNode} (intento ${attempt + 1}/${maxRetries}):`, code);
+      
+      if (!FAILOVER_ERRORS.has(code)) throw e;
+      
+      switchNode(activeNode === "primary" ? "secondary" : "primary");
+    }
   }
+
+  throw lastError;
 }
 
 export async function shouldUseSequence() {
@@ -72,5 +99,24 @@ export async function shouldUseSequence() {
   }
 }
 
-export function forcePrimary()  { activeNode = "primary";   }
-export function forceSecondary(){ activeNode = "secondary"; }
+export function forcePrimary() {
+  switchNode("primary");
+}
+
+export function forceSecondary() {
+  switchNode("secondary");
+}
+
+process.on('SIGTERM', async () => {
+  console.log('📛 Cerrando pools de conexiones...');
+  await pools.primary.end();
+  await pools.secondary.end();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('📛 Cerrando pools de conexiones...');
+  await pools.primary.end();
+  await pools.secondary.end();
+  process.exit(0);
+});
