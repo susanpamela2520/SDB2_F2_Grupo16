@@ -209,12 +209,26 @@ docker exec -it imdb-redis redis-cli GET "pgbackrest:backup:20251007-120000"
   "status": "completed"
 }
 ```
+### Evidencia 
+
+![Redis 1](./img/Redis1.jpg)
+![Redis 2](./img/Redis2.jpg)
+![Redis 3](./img/Redis3.jpg)
+![Redis 4](./img/Redis%204.jpg)
+![Redis 5](./img/Redis%205.jpg)
+![Redis 6](./img/Redis%206.jpg)
 
 ### 5.3 Ver información de backups con pgBackRest
 
 ```bash
 ./scripts/pgbackrest/show-info.sh
 ```
+
+### Evidencias
+
+![Backup 1](./img/Backup1.jpg)
+
+![Backups 2](./img/Backup2.jpeg)
 
 ---
 
