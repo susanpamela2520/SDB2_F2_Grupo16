@@ -18,31 +18,31 @@
 
 ## Registro de Actividades por Semana
 
-### Semana 1: Planificación y Configuración Inicial (17-20 Sept)
+### Semana 1: Planificación y Configuración Inicial 
 
 | Fecha | Actividad | Responsable(s) | Tiempo | Observaciones |
 |-------|-----------|----------------|--------|---------------|
 | 17/09 | Reunión inicial y análisis del proyecto | Todo el equipo | 2h | Definición de roles y tecnologías a usar |
 | 18/09 | Diseño de arquitectura maestro-maestro | Todo el equipo | 2h | Se decidió usar replicación lógica nativa de PostgreSQL 16 |
-| 19/09 | Creación de docker-compose.yml | [Nombre 3] | 4h | Configuración con 2 PostgreSQL + Redis + servicio de replicación automática |
-| 20/09 | Primera prueba de levantamiento | [Nombre 3] | 2h | Contenedores funcionando correctamente |
+| 19/09 | Creación de docker-compose.yml | [Josué Nabí] | 4h | Configuración con 2 PostgreSQL + Redis + servicio de replicación automática |
+| 20/09 | Primera prueba de levantamiento | [Josué Nabí] | 2h | Contenedores funcionando correctamente |
 
 **Total:** 10 horas
 
 ---
 
-### Semana 2: Implementación de Replicación Maestro-Maestro (23-27 Sept)
+### Semana 2: Implementación de Replicación Maestro-Maestro 
 
 | Fecha | Actividad | Responsable(s) | Tiempo | Observaciones |
 |-------|-----------|----------------|--------|---------------|
-| 23/09 | Investigación replicación lógica PostgreSQL 16 | [Nombre 2] | 3h | Se decidió usar publications/subscriptions nativas en lugar de pglogical |
-| 24/09 | Creación de archivos de configuración PostgreSQL | [Nombre 2] | 3h | master1.conf y master2.conf con parámetros de replicación lógica habilitados |
-| 24/09 | Configuración de pg_hba.conf | [Nombre 2] | 1h | Permisos para replicación desde cualquier IP |
-| 25/09 | **Desarrollo servicio replication-setup** | [Nombre 3] | 5h | **Script bash automatizado que configura replicación bidireccional al iniciar contenedores** |
-| 26/09 | **Implementación de publications** | [Nombre 2] | 3h | **Creación de `pub_imdb` en ambos masters para publicar todos los cambios** |
-| 26/09 | **Implementación de subscriptions bidireccionales** | [Nombre 2] | 4h | **Master1 se suscribe a Master2 y viceversa. Parámetro `origin='none'` previene bucles** |
+| 23/09 | Investigación replicación lógica PostgreSQL 16 | [Susan Herrera] | 3h | Se decidió usar publications/subscriptions nativas en lugar de pglogical |
+| 24/09 | Creación de archivos de configuración PostgreSQL | [Susan Herrera] | 3h | master1.conf y master2.conf con parámetros de replicación lógica habilitados |
+| 24/09 | Configuración de pg_hba.conf | [Susan Herrera] | 1h | Permisos para replicación desde cualquier IP |
+| 25/09 | **Desarrollo servicio replication-setup** | [Josué Nabí] | 5h | **Script bash automatizado que configura replicación bidireccional al iniciar contenedores** |
+| 26/09 | **Implementación de publications** | [Susan Herrera] | 3h | **Creación de `pub_imdb` en ambos masters para publicar todos los cambios** |
+| 26/09 | **Implementación de subscriptions bidireccionales** | [Josué Nabí] | 4h | **Master1 se suscribe a Master2 y viceversa. Parámetro `origin='none'` previene bucles** |
 | 27/09 | **Pruebas de replicación bidireccional** | Todo el equipo | 3h | **Inserción en M1 replica a M2, inserción en M2 replica a M1. ✅ Exitoso** |
-| 27/09 | Implementación de healthchecks | [Nombre 3] | 2h | pg_isready asegura que PostgreSQL esté listo antes de configurar replicación |
+| 27/09 | Implementación de healthchecks | [Josué Nabí] | 2h | pg_isready asegura que PostgreSQL esté listo antes de configurar replicación |
 
 **Total:** 24 horas
 
@@ -57,14 +57,14 @@
 
 ---
 
-### Semana 3: Sistema de Backups con pgBackRest (30 Sept - 4 Oct)
+### Semana 3: Sistema de Backups con pgBackRest 
 
 | Fecha | Actividad | Responsable(s) | Tiempo | Observaciones |
 |-------|-----------|----------------|--------|---------------|
-| 30/09 | Investigación y selección de pgBackRest | [Nombre 1] | 2h | Elegido por soporte de backups incrementales/diferenciales |
-| 01/10 | Configuración de pgbackrest.conf | [Nombre 1] | 3h | Configurado para ambos masters con retención: 2 full, 7 diff, 14 incr |
-| 02/10 | Desarrollo de script bootstrap.sh | [Nombre 3] | 2h | Inicializa stanzas y crea primer backup full |
-| 03/10 | Desarrollo de scripts de automatización | [Nombre 3] | 4h | run-backup.sh, show-info.sh, simulate-backup-cycle.sh |
+| 30/09 | Investigación y selección de pgBackRest | [Naomi Rashel] | 2h | Elegido por soporte de backups incrementales/diferenciales |
+| 01/10 | Configuración de pgbackrest.conf | [Naomi Rashel] | 3h | Configurado para ambos masters con retención: 2 full, 7 diff, 14 incr |
+| 02/10 | Desarrollo de script bootstrap.sh | [Josué Nabí] | 2h | Inicializa stanzas y crea primer backup full |
+| 03/10 | Desarrollo de scripts de automatización | [Josué Nabí] | 4h | run-backup.sh, show-info.sh, simulate-backup-cycle.sh |
 | 04/10 | Pruebas de backups (full, diff, incr) | Todo el equipo | 3h | Todos los tipos funcionando correctamente |
 | 04/10 | Pruebas de restauración | Todo el equipo | 2h | Restauración exitosa desde diferentes tipos de backup |
 
@@ -72,17 +72,17 @@
 
 ---
 
-### Semana 4: API, Redis y Failover (5-8 Oct)
+### Semana 4: API, Redis y Failover 
 
 | Fecha | Actividad | Responsable(s) | Tiempo | Observaciones |
 |-------|-----------|----------------|--------|---------------|
-| 05/10 | Configuración de Redis para metadata | [Nombre 3] | 2h | Redis Alpine integrado en docker-compose |
-| 05/10 | Integración Redis con scripts de backup | [Nombre 3] | 3h | Metadata de backups se registra automáticamente |
-| 06/10 | Desarrollo de API con Express | [Nombre 1] | 4h | Endpoints básicos y conexión a PostgreSQL |
-| 07/10 | **Implementación de lógica de failover** | [Nombre 1] | 5h | **Función executeWithFailover() con try-catch y cambio automático entre masters** |
-| 07/10 | Creación de endpoints de control | [Nombre 1] | 2h | /health, /active-node, /switch-to-primary, /switch-to-secondary |
+| 05/10 | Configuración de Redis para metadata | [Josué Nabí] | 2h | Redis Alpine integrado en docker-compose |
+| 05/10 | Integración Redis con scripts de backup | [Josué Nabí] | 3h | Metadata de backups se registra automáticamente |
+| 06/10 | Desarrollo de API con Express | [Naomi Rashel] | 4h | Endpoints básicos y conexión a PostgreSQL |
+| 07/10 | **Implementación de lógica de failover** | [Naomi Rashel] | 5h | **Función executeWithFailover() con try-catch y cambio automático entre masters** |
+| 07/10 | Creación de endpoints de control | [Naomi Rashel] | 2h | /health, /active-node, /switch-to-primary, /switch-to-secondary |
 | 07/10 | **Pruebas de failover manual** | Todo el equipo | 2h | **Detención de M1, API cambia automáticamente a M2. ✅ Exitoso** |
-| 08/10 | Desarrollo de locustfile.py | [Nombre 3] | 2h | Script para pruebas de carga con 10 usuarios |
+| 08/10 | Desarrollo de locustfile.py | [Josué Nabí] | 2h | Script para pruebas de carga con 10 usuarios |
 | 08/10 | **Pruebas de failover bajo carga** | Todo el equipo | 3h | **Locust con 10 usuarios, se detuvo M1, 0% errores, cambio transparente** |
 | 08/10 | **Pruebas de failback** | Todo el equipo | 2h | **Recuperación de M1, sincronización automática, switch manual exitoso** |
 
@@ -90,15 +90,15 @@
 
 ---
 
-### Semana 5: Documentación (9-11 Oct)
+### Semana 5: Documentación 
 
 | Fecha | Actividad | Responsable(s) | Tiempo | Estado |
 |-------|-----------|----------------|--------|--------|
-| 09/10 | Manual de Usuario | [Nombre 2] | 4h | ✅ Completo |
-| 09/10 | Manual Técnico | [Nombre 1] | 5h | ✅ Completo |
-| 10/10 | Bitácora de Trabajo | [Nombre 3] | 3h | ✅ Completo |
+| 09/10 | Manual de Usuario | [Susan Herrera] | 4h | ✅ Completo |
+| 09/10 | Manual Técnico | [Susan Herrera] | 5h | ✅ Completo |
+| 10/10 | Bitácora de Trabajo | [ Todo el equipo] | 3h | ✅ Completo |
 | 10/10 | README.md y revisión final | Todo el equipo | 3h | ✅ Completo |
-| 11/10 | Preparación de repositorio GitHub | [Nombre 3] | 2h | ✅ Completo |
+| 11/10 | Preparación de repositorio GitHub | [Josué Nabí] | 2h | ✅ Completo |
 
 **Total:** 17 horas
 
@@ -162,7 +162,7 @@ CREATE SUBSCRIPTION sub_from_master1
 - Crea publications y subscriptions
 - Todo en un solo `docker compose up`
 
-**Tiempo invertido:** 5 horas | **Responsable:** [Nombre 3]
+**Tiempo invertido:** 5 horas | **Responsable:** [Josué Nabí]
 
 ---
 
@@ -171,7 +171,7 @@ CREATE SUBSCRIPTION sub_from_master1
 
 **Solución:** Parámetro `origin = 'none'` en subscriptions que instruye a PostgreSQL a NO replicar cambios que ya fueron replicados desde otro nodo.
 
-**Tiempo invertido:** 2 horas (investigación) | **Responsable:** [Nombre 2]
+**Tiempo invertido:** 2 horas (investigación) | **Responsable:** [Susan Herrera]
 
 ---
 
@@ -188,7 +188,7 @@ healthcheck:
   retries: 20
 ```
 
-**Tiempo invertido:** 2 horas | **Responsable:** [Nombre 3]
+**Tiempo invertido:** 2 horas | **Responsable:** [Josué Nabí]
 
 ---
 
