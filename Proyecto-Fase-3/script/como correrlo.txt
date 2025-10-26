@@ -1,0 +1,5 @@
+node --max-old-space-size=8192 IMDBToMongo.js
+
+se indica que se quiere asignar un maximo de 8GB de RAM para la ejecucion del script
+
+se puede ajustar este valor dependiendo de la cantidad de memoria RAM disponible en la maquina

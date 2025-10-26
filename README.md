@@ -5,6 +5,8 @@
 > - [TAREA1](Tarea1/)
 > - [TAREA2](Tarea2/)
 > - [PROYECTO FASE 1](Proyecto-Fase-1/)
+> - [PROYECTO FASE 2](Proyecto-Fase-2/)
+> - [PROYECTO FASE 3](Proyecto-Fase-3/)
 
 ## 📄 Integrantes del grupo
 
